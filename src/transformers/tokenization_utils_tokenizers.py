@@ -25,7 +25,7 @@ from shutil import copyfile
 from typing import Any, Optional, Union
 
 import tokenizers.pre_tokenizers as pre_tokenizers_fast
-from tokenizers import AddedToken, processors
+from tokenizers import AddedToken, decoders, processors
 from tokenizers import Encoding as EncodingFast
 from tokenizers import Tokenizer as TokenizerFast
 from tokenizers import normalizers as tokenizers_normalizers
@@ -354,6 +354,20 @@ class TokenizersBackend(PreTrainedTokenizerBase):
                     self._tokenizer = TokenizerFast.from_str(json.dumps(tokenizer_json))
             except Exception:
                 pass
+
+        # Ensure WordPiece decoders keep legacy spacing semantics for backward compatibility
+        try:
+            decoder = self.backend_tokenizer.decoder
+            if decoder is not None:
+                decoder_state = json.loads(decoder.__getstate__())
+                if decoder_state.get("type") == "WordPiece" and not decoder_state.get("cleanup", True):
+                    decoder_state["cleanup"] = True
+                    decoder_type = decoder_state.pop("type", None)
+                    decoder_cls = getattr(decoders, decoder_type, None)
+                    if decoder_cls is not None:
+                        self.backend_tokenizer.decoder = decoder_cls(**decoder_state)
+        except Exception:
+            pass
 
         # Ensure normalizer flags (lowercase/accents/chinese chars) reflect tokenizer attributes
         try:

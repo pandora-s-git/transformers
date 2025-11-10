@@ -1231,7 +1231,17 @@ Hey how are you doing"""
                 chat_string = tokenizer_r.apply_chat_template(
                     conversations[0], tokenize=False, chat_template=dummy_template
                 )
-                truncation_position = full_encoding.char_to_token(chat_string.index(", long string to be truncated,"))
+                assistant_start_char = chat_string.index("start turn assistant")
+                assistant_start_token = full_encoding.char_to_token(assistant_start_char)
+                truncation_candidate = full_encoding.char_to_token(
+                    chat_string.index(", long string to be truncated,")
+                )
+                if assistant_start_token is None:
+                    self.fail("Assistant span was not present in the untruncated encoding.")
+                if truncation_candidate is None or truncation_candidate <= assistant_start_token:
+                    truncation_position = assistant_start_token + 1
+                else:
+                    truncation_position = truncation_candidate
 
                 # check batched
                 output = tokenizer_r.apply_chat_template(
@@ -1246,7 +1256,7 @@ Hey how are you doing"""
                 for i, conv in enumerate(conversations):
                     chat_string = tokenizer_r.apply_chat_template(conv, tokenize=False, chat_template=dummy_template)
                     assistant_start = output.char_to_token(i, chat_string.index("start turn assistant"))
-
+                    self.assertIsNotNone(assistant_start)
                     # assert 1 from assistant_start to the end because the rest is truncated.
                     self.assertEqual(
                         output["assistant_masks"][i][assistant_start:],
@@ -1268,7 +1278,7 @@ Hey how are you doing"""
                     conversations[0], tokenize=False, chat_template=dummy_template
                 )
                 assistant_start = output.char_to_token(0, chat_string.index("start turn assistant"))
-
+                self.assertIsNotNone(assistant_start)
                 # assert 1 from assistant_start to the end because the rest is truncated.
                 self.assertEqual(
                     output["assistant_masks"][assistant_start:],

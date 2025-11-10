@@ -121,7 +121,8 @@ class BertTokenizer(TokenizersBackend):
             lowercase=do_lower_case,
         )
         self._tokenizer.pre_tokenizer = pre_tokenizers.BertPreTokenizer()
-        self._tokenizer.decoder = decoders.WordPiece(prefix="##")
+        # Explicitly set cleanup to True to match the behavior of the legacy (spaces)
+        self._tokenizer.decoder = decoders.WordPiece(prefix="##", cleanup=True)
 
         tokenizer_object = self._tokenizer
 
